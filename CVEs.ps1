@@ -6,11 +6,12 @@ param (
 # Read in CPE strings from txt file in same directory
 $FileContents = Get-Content -Path $FilePath
  
-$i = 1
+# declare variables to be used during loop
+$i = 0
+$data = @{};
+
 # Read the file line by line FOR Cpe Name strings
 ForEach ($Line in $FileContents) {
-    # Process each line here
-    Write-Host "Line# $i :" $Line
 
     # Create the necessary URL
     $URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName=$Line&isVulnerable"
@@ -21,10 +22,29 @@ ForEach ($Line in $FileContents) {
     # grab the desired information from the vulenrability object
     foreach ($item in $AllRetrievedCVEs.vulnerabilities) {
         $cve = $item.cve
-        Write-Host $cve.id
+        $data[$cve.id] = @($cve.id, $cve.published)
+        
+        if ($cve.metrics.cvssMetricV31)
+        {
+            $data[$cve.id] += @($cve.metrics.cvssMetricV31[0].cvssData.baseScore, $cve.metrics.cvssMetricV31[0].cvssData.vectorString)
+        }
+        elseif ($cve.metrics.cvssMetricV30)
+        {
+            $data[$cve.id] += @($cve.metrics.cvssMetricV30[0].cvssData.baseScore, $cve.metrics.cvssMetricV30[0].cvssData.vectorString)
+        }
+        else {
+            $data[$cve.id] += @($cve.metrics.cvssMetricV2[0].cvssData.baseScore, $cve.metrics.cvssMetricV2[0].cvssData.vectorString)
+        }
     }
+    
+    # fetch the EPSS score based on the CVE-ID
 
     # increment i for next loop and sleep program as requested by the NVD API
+    if ($i -gt 0) 
+    {
+        Start-Sleep -Seconds 6
+    }
     $i++
-    Start-Sleep -Seconds 6
 }
+
+$data | Format-Table
