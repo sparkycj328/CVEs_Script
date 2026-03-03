@@ -8,11 +8,12 @@ $FileContents = Get-Content -Path $FilePath
  
 # declare variables to be used during loop
 $i = 0
-$data = @{};
+$data = @{}
+$arr = @()
 
 # Read the file line by line FOR Cpe Name strings
 ForEach ($Line in $FileContents) {
-
+    $max = 0
     # Create the necessary URL
     $URL = "https://services.nvd.nist.gov/rest/json/cves/2.0?cpeName=$Line&isVulnerable"
 
@@ -22,18 +23,31 @@ ForEach ($Line in $FileContents) {
     # grab the desired information from the vulenrability object
     foreach ($item in $AllRetrievedCVEs.vulnerabilities) {
         $cve = $item.cve
-        $data[$cve.id] = @($cve.id, $cve.published)
         
         if ($cve.metrics.cvssMetricV31)
         {
-            $data[$cve.id] += @($cve.metrics.cvssMetricV31[0].cvssData.baseScore, $cve.metrics.cvssMetricV31[0].cvssData.vectorString)
+            if ($cve.metrics.cvssMetricV31[0].cvssData.baseScore -gt $max) {
+                $max = $cve.metrics.cvssMetricV31[0].cvssData.baseScore
+                $arr = @($cve.id, $cve.metrics.cvssMetricV31[0].cvssData.baseScore, $cve.metrics.cvssMetricV31[0].cvssData.vectorString)
+                $data[$Line] = $arr
+            }
+            
         }
         elseif ($cve.metrics.cvssMetricV30)
         {
-            $data[$cve.id] += @($cve.metrics.cvssMetricV30[0].cvssData.baseScore, $cve.metrics.cvssMetricV30[0].cvssData.vectorString)
+
+            if ($cve.metrics.cvssMetricV30[0].cvssData.baseScore -gt $max) {
+                $max = $cve.metrics.cvssMetricV30[0].cvssData.baseScore
+                $arr = @($cve.id, $cve.metrics.cvssMetricV30[0].cvssData.baseScore, $cve.metrics.cvssMetricV30[0].cvssData.vectorString)
+                $data[$Line] = $arr
+            }
         }
         else {
-            $data[$cve.id] += @($cve.metrics.cvssMetricV2[0].cvssData.baseScore, $cve.metrics.cvssMetricV2[0].cvssData.vectorString)
+            if ($cve.metrics.cvssMetricV2[0].cvssData.baseScore -gt $max) {
+                $max = $cve.metrics.cvssMetricV2[0].cvssData.baseScore
+                $arr = @($cve.id, $cve.metrics.cvssMetricV2[0].cvssData.baseScore, $cve.metrics.cvssMetricV2[0].cvssData.vectorString)
+                $data[$Line] = $arr
+            }
         }
     }
     
